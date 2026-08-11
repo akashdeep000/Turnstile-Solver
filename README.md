@@ -159,14 +159,31 @@ docker run -d -p 3389:3389 -p 5000:5000 -e TZ=Asia/Baku --name turnstile_solver 
 | `sitekey`  | string  | The site key for the CAPTCHA to be solved. (e.g., `0x4AAAAAAA`) | Yes      |
 | `action`   | string  | Action to trigger during CAPTCHA solving, e.g., `login`            | No       |
 | `cdata`    | string  | Custom data that can be used for additional CAPTCHA parameters.    | No       |
+| `sync`     | boolean | If `true`, waits for the CAPTCHA and returns the token directly in the same request (default: `false`). | No       |
+| `timeout`  | number  | Max wait time in seconds for `sync=true` requests (default: no limit). | No       |
 
-#### Response:
+#### Async Response (default):
 
 If the request is successfully received, the server will respond with a `task_id` for the CAPTCHA solving task:
 
 ```json
 {
   "task_id": "d2cbb257-9c37-4f9c-9bc7-1eaee72d96a8"
+}
+```
+
+#### Sync Response:
+
+```http
+  GET /turnstile?url=https://example.com&sitekey=0x4AAAAAAA&sync=true&timeout=30
+```
+
+The request blocks until the CAPTCHA is solved and returns the token directly (`200` on success, `408` on timeout, `422` if solving failed):
+
+```json
+{
+  "elapsed_time": 7.625,
+  "value": "0.KBtT-r"
 }
 ```
 

@@ -254,6 +254,8 @@ class TurnstileAPIServer:
         sitekey = request.args.get('sitekey')
         action = request.args.get('action')
         cdata = request.args.get('cdata')
+        sync = request.args.get('sync', 'false').lower() in ('true', '1', 'yes')
+        timeout = request.args.get('timeout')
 
         if not url or not sitekey:
             return jsonify({
@@ -261,15 +263,55 @@ class TurnstileAPIServer:
                 "error": "Both 'url' and 'sitekey' are required"
             }), 400
 
+        timeout_seconds = None
+        if timeout:
+            try:
+                timeout_seconds = float(timeout)
+            except ValueError:
+                return jsonify({
+                    "status": "error",
+                    "error": "Invalid 'timeout' parameter"
+                }), 400
+            if timeout_seconds <= 0:
+                timeout_seconds = None
+
         task_id = str(uuid.uuid4())
         self.results[task_id] = "CAPTCHA_NOT_READY"
 
         try:
-            asyncio.create_task(self._solve_turnstile(task_id=task_id, url=url, sitekey=sitekey, action=action, cdata=cdata))
+            if sync:
+                try:
+                    await asyncio.wait_for(
+                        self._solve_turnstile(task_id=task_id, url=url, sitekey=sitekey, action=action, cdata=cdata),
+                        timeout=timeout_seconds
+                    )
+                    result = self.results.pop(task_id, None)
+                except asyncio.TimeoutError:
+                    self.results.pop(task_id, None)
+                    return jsonify({
+                        "status": "error",
+                        "error": "Captcha solving timed out"
+                    }), 408
 
-            if self.debug:
-                logger.debug(f"Request completed with taskid {task_id}.")
-            return jsonify({"task_id": task_id}), 202
+                if isinstance(result, dict) and result.get("value") not in ("CAPTCHA_FAIL",):
+                    if self.debug:
+                        logger.debug(f"Sync request solved in {result.get('elapsed_time')} seconds.")
+                    return jsonify({"value": result.get("value"), "elapsed_time": result.get("elapsed_time")}), 200
+                if isinstance(result, dict) and result.get("value") == "CAPTCHA_FAIL":
+                    return jsonify({
+                        "status": "error",
+                        "error": "Failed to solve captcha"
+                    }), 422
+                return jsonify({
+                    "status": "error",
+                    "error": "Captcha not ready"
+                }), 408
+            else:
+                asyncio.create_task(self._solve_turnstile(task_id=task_id, url=url, sitekey=sitekey, action=action, cdata=cdata))
+
+                if self.debug:
+                    logger.debug(f"Request completed with taskid {task_id}.")
+                return jsonify({"task_id": task_id}), 202
         except Exception as e:
             logger.error(f"Unexpected error processing request: {str(e)}")
             return jsonify({
