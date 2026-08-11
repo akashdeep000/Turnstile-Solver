@@ -65,6 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
     __EXTRA_OPTS__
     callback: t => { tok = t; document.title = 'OK:' + t; },
     'error-callback': e => { if (!document.title.startsWith('OK:')) document.title = 'ERROR:' + e; },
+    'before-interactive-callback': () => { document.title = 'CLICK:'; },
     'unsupported-callback': () => { document.title = 'ERROR:unsupported'; },
   });
 });
@@ -202,6 +203,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 logger.debug(f"Browser {index}: Starting Turnstile response retrieval loop")
 
             solve_deadline = time.time() + 50
+            clicks = 0
             while time.time() < solve_deadline:
                 try:
                     turnstile_check = await page.input_value("[name=cf-turnstile-response]", timeout=1000)
@@ -216,6 +218,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 except:
                     if self.debug:
                         logger.debug(f"Browser {index}: Waiting for Turnstile response field")
+
+                title = await page.title()
+                if title.startswith("CLICK:") and clicks < 2:
+                    box = await page.locator("#cf-turnstile").bounding_box()
+                    if box:
+                        await page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+                        clicks += 1
+                        if self.debug:
+                            logger.debug(f"Browser {index}: Clicking interactive Turnstile checkbox (attempt {clicks})")
+
                 await asyncio.sleep(0.5)
 
             if self.results.get(task_id) == "CAPTCHA_NOT_READY":
