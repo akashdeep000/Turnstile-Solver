@@ -128,7 +128,6 @@ To start the container, use:
 ```sh
 docker run -d -p 3389:3389 -p 5000:5000 -e TZ=Asia/Baku --name turnstile_solver ghcr.io/akashdeep000/turnstile-solver:latest
 ```
-- If `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are set on the repo, the image is also pushed to `docker.io/<username>/turnstile-solver:latest`.
 
 #### Container Modes
 - **RDP mode (default):** the container stays alive for RDP access on port `3389` (user/pass: `root:root`).
