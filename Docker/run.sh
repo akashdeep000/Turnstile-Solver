@@ -9,16 +9,16 @@ start_xrdp_services() {
     xrdp-sesman &
     xrdp -n &
 
-    echo "Waiting for X server to be ready..."
-    for i in {1..20}; do
-        if pgrep Xorg >/dev/null; then
-            echo "Xorg is running."
+    echo "Waiting for RDP service to be ready..."
+    for i in {1..30}; do
+        if ss -ltn 2>/dev/null | grep -q ':3389'; then
+            echo "RDP is listening on port 3389."
             return
         fi
         sleep 1
     done
 
-    echo "Xorg not detected after timeout."
+    echo "RDP service not detected after timeout."
 }
 
 stop_xrdp_services() {
@@ -63,7 +63,7 @@ cd /root/Desktop || {
     exit 1
 }
 
-git clone https://github.com/Theyka/Turnstile-Solver.git
+git clone https://github.com/akashdeep000/Turnstile-Solver.git
 cd Turnstile-Solver || {
     echo "Failed to change directory to Turnstile-Solver"
     exit 1
@@ -77,4 +77,7 @@ start_xrdp_services
 if [ "$RUN_API_SOLVER" = "true" ]; then
     echo "Starting API solver in headful mode..."
     xvfb-run -a python3 /root/Desktop/Turnstile-Solver/api_solver.py --browser_type chrome --host 0.0.0.0
+else
+    echo "API solver disabled. Container running for RDP access on port 3389..."
+    tail -f /dev/null
 fi

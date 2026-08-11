@@ -129,6 +129,14 @@ docker run -d -p 3389:3389 -p 5000:5000 -e TZ=Asia/Baku --name turnstile_solver 
 ```
 - If `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are set on the repo, the image is also pushed to `docker.io/<username>/turnstile-solver:latest`.
 
+#### Container Modes
+- **RDP mode (default):** the container stays alive for RDP access on port `3389` (user/pass: `root:root`).
+- **API mode:** set `RUN_API_SOLVER=true` to auto-start the solver API on port `5000`:
+  ```sh
+  docker run -d -p 5000:5000 -e RUN_API_SOLVER=true -e TZ=Asia/Baku --name turnstile_solver ghcr.io/akashdeep000/turnstile-solver:latest
+  ```
+  The solver runs in headful mode under a virtual display (`xvfb`), no RDP needed.
+
 #### Connecting to the Container
 1. Use an **RDP client** (like Windows Remote Desktop, Remmina, or FreeRDP)
 2. Connect to `localhost:3389`
