@@ -54,34 +54,21 @@ logger.addHandler(handler)
 
 
 class TurnstileAPIServer:
-    HTML_TEMPLATE = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Turnstile Solver</title>
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async></script>
-        <script>
-            async function fetchIP() {
-                try {
-                    const response = await fetch('https://api64.ipify.org?format=json');
-                    const data = await response.json();
-                    document.getElementById('ip-display').innerText = `Your IP: ${data.ip}`;
-                } catch (error) {
-                    console.error('Error fetching IP:', error);
-                    document.getElementById('ip-display').innerText = 'Failed to fetch IP';
-                }
-            }
-            window.onload = fetchIP;
-        </script>
-    </head>
-    <body>
-        <!-- cf turnstile -->
-        <p id="ip-display">Fetching your IP...</p>
-    </body>
-    </html>
-    """
+    HTML_TEMPLATE = """<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+<div id="cf-turnstile" style="position:fixed;right:0;bottom:0;width:300px;height:65px;z-index:9999"></div>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+<script>
+let __wid = null, tok = null;
+window.addEventListener('DOMContentLoaded', () => {
+  __wid = turnstile.render('#cf-turnstile', {
+    sitekey: '__SITEKEY__',
+    __EXTRA_OPTS__
+    callback: t => { tok = t; document.title = 'OK:' + t; },
+    'error-callback': e => { if (!document.title.startsWith('OK:')) document.title = 'ERROR:' + e; },
+    'unsupported-callback': () => { document.title = 'ERROR:unsupported'; },
+  });
+});
+</script></body></html>"""
 
     def __init__(self, headless: bool, useragent: str, debug: bool, browser_type: str, thread: int, proxy_support: bool, default_timeout: int = DEFAULT_TIMEOUT):
         self.app = Quart(__name__)
@@ -200,30 +187,25 @@ class TurnstileAPIServer:
                 logger.debug(f"Browser {index}: Setting up page data and route")
 
             url_with_slash = url + "/" if not url.endswith("/") else url
-            turnstile_div = f'<div class="cf-turnstile" style="background: white;" data-sitekey="{sitekey}"' + (f' data-action="{action}"' if action else '') + (f' data-cdata="{cdata}"' if cdata else '') + '></div>'
-            page_data = self.HTML_TEMPLATE.replace("<!-- cf turnstile -->", turnstile_div)
+            page_data = self.HTML_TEMPLATE.replace("__SITEKEY__", sitekey)
+            extra_opts = ""
+            if action:
+                extra_opts += f"action: {json.dumps(action)},\n"
+            if cdata:
+                extra_opts += f"cdata: {json.dumps(cdata)},\n"
+            page_data = page_data.replace("__EXTRA_OPTS__", extra_opts)
 
             await page.route(url_with_slash, lambda route: route.fulfill(body=page_data, status=200, headers={"Content-Type": "text/html"}))
-            await page.goto(url_with_slash)
-
-            if self.debug:
-                logger.debug(f"Browser {index}: Setting up Turnstile widget dimensions")
-
-            await page.eval_on_selector("//div[@class='cf-turnstile']", "el => el.style.width = '70px'")
+            await page.goto(url_with_slash, wait_until="load")
 
             if self.debug:
                 logger.debug(f"Browser {index}: Starting Turnstile response retrieval loop")
 
-            for _ in range(10):
+            solve_deadline = time.time() + 50
+            while time.time() < solve_deadline:
                 try:
-                    turnstile_check = await page.input_value("[name=cf-turnstile-response]", timeout=2000)
-                    if turnstile_check == "":
-                        if self.debug:
-                            logger.debug(f"Browser {index}: Attempt {_} - No Turnstile response yet")
-
-                        await page.locator("//div[@class='cf-turnstile']").click(timeout=1000)
-                        await asyncio.sleep(0.5)
-                    else:
+                    turnstile_check = await page.input_value("[name=cf-turnstile-response]", timeout=1000)
+                    if turnstile_check:
                         elapsed_time = round(time.time() - start_time, 3)
 
                         logger.success(f"Browser {index}: Successfully solved captcha - {COLORS.get('MAGENTA')}{turnstile_check[:10]}{COLORS.get('RESET')} in {COLORS.get('GREEN')}{elapsed_time}{COLORS.get('RESET')} Seconds")
@@ -232,7 +214,9 @@ class TurnstileAPIServer:
                         self._save_results()
                         break
                 except:
-                    pass
+                    if self.debug:
+                        logger.debug(f"Browser {index}: Waiting for Turnstile response field")
+                await asyncio.sleep(0.5)
 
             if self.results.get(task_id) == "CAPTCHA_NOT_READY":
                 elapsed_time = round(time.time() - start_time, 3)
