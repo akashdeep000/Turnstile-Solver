@@ -39,6 +39,10 @@ RUN apt remove -y light-locker xscreensaver && \
     apt autoremove -y && \
     rm -rf /var/cache/apt /var/lib/apt/lists
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends 3proxy iproute2 || \
+    echo "WARN: 3proxy/iproute2 not available; IPv6 proxy pool will be skipped"
+
 ARG TARGETARCH
 
 RUN apt-get update && \

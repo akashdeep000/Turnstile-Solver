@@ -165,12 +165,17 @@ window.addEventListener('DOMContentLoaded', () => {
             proxy = random.choice(proxies) if proxies else None
 
             if proxy:
-                parts = proxy.split(':')
-                if len(parts) == 3:
-                    context = await browser.new_context(proxy={"server": f"{proxy}"})
-                elif len(parts) == 5:
-                    proxy_scheme, proxy_ip, proxy_port, proxy_user, proxy_pass = parts
-                    context = await browser.new_context(proxy={"server": f"{proxy_scheme}://{proxy_ip}:{proxy_port}", "username": proxy_user, "password": proxy_pass})
+                maybe = proxy.split("://", 1)
+                if len(maybe) == 2:
+                    scheme, rest = maybe
+                    chunks = rest.split(":")
+                    if len(chunks) in (2, 4):
+                        proxy_ip, proxy_port = chunks[0], chunks[1]
+                        proxy_user = chunks[2] if len(chunks) == 4 else None
+                        proxy_pass = chunks[3] if len(chunks) == 4 else None
+                        context = await browser.new_context(proxy={"server": f"{scheme}://{proxy_ip}:{proxy_port}", "username": proxy_user, "password": proxy_pass})
+                    else:
+                        raise ValueError("Invalid proxy format")
                 else:
                     raise ValueError("Invalid proxy format")
             else:
