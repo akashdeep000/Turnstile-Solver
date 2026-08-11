@@ -75,6 +75,16 @@ trap "stop_xrdp_services" SIGKILL SIGTERM SIGHUP SIGINT EXIT
 start_xrdp_services
 
 start_ipv6_proxy_pool() {
+    PROXIES_FILE="/root/Desktop/Turnstile-Solver/proxies.txt"
+
+    if [ -s /root/proxyserver/backconnect_proxies.list ]; then
+        grep -E '^[0-9.]+:[0-9]+' /root/proxyserver/backconnect_proxies.list > "$PROXIES_FILE" 2>/dev/null
+        if [ -s "$PROXIES_FILE" ]; then
+            echo "IPv6 proxy pool: using ipv6-proxy-server backconnect proxies ($(wc -l < "$PROXIES_FILE") entries)"
+            return 0
+        fi
+    fi
+
     command -v 3proxy >/dev/null 2>&1 || { echo "IPv6 proxy pool: SKIPPED (3proxy not installed)"; return 0; }
 
     python3 - <<'PYEOF'
