@@ -21,6 +21,8 @@ COLORS = {
     'RESET': '\033[0m',
 }
 
+DEFAULT_TIMEOUT = 60
+
 
 class CustomLogger(logging.Logger):
     @staticmethod
@@ -81,7 +83,7 @@ class TurnstileAPIServer:
     </html>
     """
 
-    def __init__(self, headless: bool, useragent: str, debug: bool, browser_type: str, thread: int, proxy_support: bool):
+    def __init__(self, headless: bool, useragent: str, debug: bool, browser_type: str, thread: int, proxy_support: bool, default_timeout: int = DEFAULT_TIMEOUT):
         self.app = Quart(__name__)
         self.debug = debug
         self.results = self._load_results()
@@ -90,6 +92,7 @@ class TurnstileAPIServer:
         self.useragent = useragent
         self.thread_count = thread
         self.proxy_support = proxy_support
+        self.default_timeout = default_timeout
         self.browser_pool = asyncio.Queue()
         self.browser_args = []
         if useragent:
@@ -263,7 +266,7 @@ class TurnstileAPIServer:
                 "error": "Both 'url' and 'sitekey' are required"
             }), 400
 
-        timeout_seconds = None
+        timeout_seconds = self.default_timeout
         if timeout:
             try:
                 timeout_seconds = float(timeout)
@@ -388,11 +391,12 @@ def parse_args():
     parser.add_argument('--proxy', type=bool, default=False, help='Enable proxy support for the solver (Default: False)')
     parser.add_argument('--host', type=str, default='127.0.0.1', help='Specify the IP address where the API solver runs. (Default: 127.0.0.1)')
     parser.add_argument('--port', type=str, default='5000', help='Set the port for the API solver to listen on. (Default: 5000)')
+    parser.add_argument('--default_timeout', type=int, default=DEFAULT_TIMEOUT, help='Default timeout in seconds for sync=true requests when no timeout is provided. (Default: 60)')
     return parser.parse_args()
 
 
-def create_app(headless: bool, useragent: str, debug: bool, browser_type: str, thread: int, proxy_support: bool) -> Quart:
-    server = TurnstileAPIServer(headless=headless, useragent=useragent, debug=debug, browser_type=browser_type, thread=thread, proxy_support=proxy_support)
+def create_app(headless: bool, useragent: str, debug: bool, browser_type: str, thread: int, proxy_support: bool, default_timeout: int = DEFAULT_TIMEOUT) -> Quart:
+    server = TurnstileAPIServer(headless=headless, useragent=useragent, debug=debug, browser_type=browser_type, thread=thread, proxy_support=proxy_support, default_timeout=default_timeout)
     return server.app
 
 
@@ -409,5 +413,5 @@ if __name__ == '__main__':
     elif args.headless is True and args.useragent is None and "camoufox" not in args.browser_type:
         logger.error(f"You must specify a {COLORS.get('YELLOW')}User-Agent{COLORS.get('RESET')} for Turnstile Solver or use {COLORS.get('GREEN')}camoufox{COLORS.get('RESET')} without useragent")
     else:
-        app = create_app(headless=args.headless, debug=args.debug, useragent=args.useragent, browser_type=args.browser_type, thread=args.thread, proxy_support=args.proxy)
+        app = create_app(headless=args.headless, debug=args.debug, useragent=args.useragent, browser_type=args.browser_type, thread=args.thread, proxy_support=args.proxy, default_timeout=args.default_timeout)
         app.run(host=args.host, port=int(args.port))

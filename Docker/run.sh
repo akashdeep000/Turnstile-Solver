@@ -76,7 +76,7 @@ start_xrdp_services
 
 if [ "$RUN_API_SOLVER" = "true" ]; then
     echo "Starting API solver in headful mode..."
-    xvfb-run -a python3 /root/Desktop/Turnstile-Solver/api_solver.py --browser_type chrome --host 0.0.0.0
+    xvfb-run -a python3 /root/Desktop/Turnstile-Solver/api_solver.py --browser_type chrome --host 0.0.0.0 --default_timeout "${DEFAULT_TIMEOUT:-60}"
 else
     echo "API solver disabled. Container running for RDP access on port 3389..."
     tail -f /dev/null

@@ -116,6 +116,7 @@ A Python-based Turnstile solver using the patchright library, featuring multi-th
 | `--host`       | `127.0.0.1` | `string`  | Specifies the IP address the API solver runs on.                                            |
 | `--port`       | `5000`   | `integer` | Sets the port the API solver listens on.                                                    |
 | `--proxy`       | `False`   | `boolean` | Select a random proxy from proxies.txt for solving captchas                                                   |
+| `--default_timeout` | `60` | `integer` | Default timeout in seconds for `sync=true` requests when no `timeout` param is provided.                    |
 
 ---
 
@@ -160,7 +161,7 @@ docker run -d -p 3389:3389 -p 5000:5000 -e TZ=Asia/Baku --name turnstile_solver 
 | `action`   | string  | Action to trigger during CAPTCHA solving, e.g., `login`            | No       |
 | `cdata`    | string  | Custom data that can be used for additional CAPTCHA parameters.    | No       |
 | `sync`     | boolean | If `true`, waits for the CAPTCHA and returns the token directly in the same request (default: `false`). | No       |
-| `timeout`  | number  | Max wait time in seconds for `sync=true` requests (default: no limit). | No       |
+| `timeout`  | number  | Max wait time in seconds for `sync=true` requests (default: `60`, configurable via `--default_timeout`). | No       |
 
 #### Async Response (default):
 
