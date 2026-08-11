@@ -39,10 +39,12 @@ RUN apt remove -y light-locker xscreensaver && \
     apt autoremove -y && \
     rm -rf /var/cache/apt /var/lib/apt/lists
 
+ARG TARGETARCH
+
 RUN apt-get update && \
-    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt-get install -y ./google-chrome-stable_current_amd64.deb && \
-    rm ./google-chrome-stable_current_amd64.deb
+    wget https://dl.google.com/linux/direct/google-chrome-stable_current_${TARGETARCH}.deb && \
+    apt-get install -y ./google-chrome-stable_current_${TARGETARCH}.deb && \
+    rm ./google-chrome-stable_current_${TARGETARCH}.deb
 
 COPY ./run.sh /usr/bin/
 RUN chmod +x /usr/bin/run.sh

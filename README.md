@@ -120,12 +120,14 @@ A Python-based Turnstile solver using the patchright library, featuring multi-th
 ---
 
 ### 🐳 Docker Image
+> Images are built automatically via GitHub Actions for **linux/amd64** and **linux/arm64** (e.g. Raspberry Pi, ARM servers). No local build needed.
 #### Running the Container
 To start the container, use:
 - Change the TZ environment variable and ports to the correct one for yourself:
 ```sh
-docker run -d -p 3389:3389 -p 5000:5000 -e TZ=Asia/Baku --name turnstile_solver theyka/turnstile_solver:latest
+docker run -d -p 3389:3389 -p 5000:5000 -e TZ=Asia/Baku --name turnstile_solver ghcr.io/akashdeep000/turnstile-solver:latest
 ```
+- If `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are set on the repo, the image is also pushed to `docker.io/<username>/turnstile-solver:latest`.
 
 #### Connecting to the Container
 1. Use an **RDP client** (like Windows Remote Desktop, Remmina, or FreeRDP)
