@@ -204,8 +204,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
             solve_deadline = time.time() + 50
             clicks = 0
+            diag = {"input_seen": False, "title": "", "clicks": 0}
             while time.time() < solve_deadline:
                 try:
+                    if not diag["input_seen"] and await page.locator("[name=cf-turnstile-response]").count() > 0:
+                        diag["input_seen"] = True
                     turnstile_check = await page.input_value("[name=cf-turnstile-response]", timeout=1000)
                     if turnstile_check:
                         elapsed_time = round(time.time() - start_time, 3)
@@ -219,12 +222,13 @@ window.addEventListener('DOMContentLoaded', () => {
                     if self.debug:
                         logger.debug(f"Browser {index}: Waiting for Turnstile response field")
 
-                title = await page.title()
-                if title.startswith("CLICK:") and clicks < 2:
+                diag["title"] = await page.title()
+                if diag["title"].startswith("CLICK:") and clicks < 2:
                     box = await page.locator("#cf-turnstile").bounding_box()
                     if box:
                         await page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
                         clicks += 1
+                        diag["clicks"] = clicks
                         if self.debug:
                             logger.debug(f"Browser {index}: Clicking interactive Turnstile checkbox (attempt {clicks})")
 
@@ -232,12 +236,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if self.results.get(task_id) == "CAPTCHA_NOT_READY":
                 elapsed_time = round(time.time() - start_time, 3)
-                self.results[task_id] = {"value": "CAPTCHA_FAIL", "elapsed_time": elapsed_time}
+                self.results[task_id] = {"value": "CAPTCHA_FAIL", "elapsed_time": elapsed_time, "diagnostics": diag}
                 if self.debug:
                     logger.error(f"Browser {index}: Error solving Turnstile in {COLORS.get('RED')}{elapsed_time}{COLORS.get('RESET')} Seconds")
         except Exception as e:
             elapsed_time = round(time.time() - start_time, 3)
-            self.results[task_id] = {"value": "CAPTCHA_FAIL", "elapsed_time": elapsed_time}
+            self.results[task_id] = {"value": "CAPTCHA_FAIL", "elapsed_time": elapsed_time, "error": str(e)}
             if self.debug:
                 logger.error(f"Browser {index}: Error solving Turnstile: {str(e)}")
         finally:
@@ -297,10 +301,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         logger.debug(f"Sync request solved in {result.get('elapsed_time')} seconds.")
                     return jsonify({"value": result.get("value"), "elapsed_time": result.get("elapsed_time")}), 200
                 if isinstance(result, dict) and result.get("value") == "CAPTCHA_FAIL":
-                    return jsonify({
-                        "status": "error",
-                        "error": "Failed to solve captcha"
-                    }), 422
+                    payload = {"status": "error", "error": "Failed to solve captcha"}
+                    payload.update({k: v for k, v in result.items() if k != "value"})
+                    return jsonify(payload), 422
                 return jsonify({
                     "status": "error",
                     "error": "Captcha not ready"
